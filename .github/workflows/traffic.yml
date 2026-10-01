@@ -1,8 +1,10 @@
 name: ROOMBO Traffic Collector
 
 on:
+  workflow_dispatch:
+
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
 
 jobs:
   collect-traffic:
