@@ -11,11 +11,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Resolver Supabase mediante Cloudflare DNS
+        env:
+          SUPABASE_HOST: veetemahmlrjzyktjry.supabase.co
+        run: |
+          set -euo pipefail
+
+          echo "Consultando DNS de Cloudflare..."
+
+          DNS_RESPONSE=$(curl --fail --silent --show-error \
+            --retry 3 \
+            --header "accept: application/dns-json" \
+            "https://cloudflare-dns.com/dns-query?name=${SUPABASE_HOST}&type=A")
+
+          echo "Respuesta DNS recibida."
+
+          SUPABASE_IP=$(printf '%s' "$DNS_RESPONSE" \
+            | jq -r '.Answer[]? | select(.type == 1) | .data' \
+            | head -n 1)
+
+          if [ -z "$SUPABASE_IP" ] || [ "$SUPABASE_IP" = "null" ]; then
+            echo "ERROR: Cloudflare DNS no devolvió una dirección IPv4 para ${SUPABASE_HOST}"
+            echo "$DNS_RESPONSE"
+            exit 1
+          fi
+
+          echo "Supabase IP encontrada: $SUPABASE_IP"
+
+          echo "SUPABASE_IP=$SUPABASE_IP" >> "$GITHUB_ENV"
+
       - name: Ejecutar colector de tráfico ROOMBO
+        env:
+          SUPABASE_HOST: veetemahmlrjzyktjry.supabase.co
         run: |
           curl --fail-with-body --silent --show-error \
+            --retry 3 \
             --request POST \
-            --url "https://veetemahmlrjzyktjry.supabase.co/functions/v1/roombo-traffic-collector" \
+            --resolve "${SUPABASE_HOST}:443:${SUPABASE_IP}" \
+            --url "https://${SUPABASE_HOST}/functions/v1/roombo-traffic-collector" \
             --header "Content-Type: application/json" \
             --header "apikey: ${{ secrets.SUPABASE_SECRET_KEY }}" \
             --data '{"source":"github-actions","scheduled_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
