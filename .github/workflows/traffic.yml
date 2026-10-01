@@ -1,0 +1,19 @@
+name: ROOMBO Traffic Collector
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+
+jobs:
+  collect-traffic:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ejecutar colector de tráfico ROOMBO
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --url "https://veetemahmlrjzyktjry.supabase.co/functions/v1/roombo-traffic-collector" \
+            --header "Content-Type: application/json" \
+            --header "apikey: ${{ secrets.SUPABASE_SECRET_KEY }}" \
+            --data '{"source":"github-actions","scheduled_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
